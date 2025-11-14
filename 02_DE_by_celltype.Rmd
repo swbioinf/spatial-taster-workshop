@@ -1,0 +1,231 @@
+---
+title: "Differential expression - celltypes"
+output: html_notebook
+---
+
+See: https://swbioinf.github.io/spatialsnippets/e_DEPseudobulkSampleLevel_insitu_sfe.html
+
+
+## Pool samples into pseudobulk
+
+
+Build pseudobulk (precomputed)
+```{r eval=FALSE}
+# DO NOT RUN
+sfe$pdb_sample <- paste0(sfe$tissue_sample, '_', sfe$celltype_subset)
+se.pdb <- aggregateAcrossCells(sfe, ids=sfe$pdb_sample,
+                               BPPARAM = MulticoreParam(workers=4)  )
+```
+
+Load pseudobulk
+```{r}
+se.pdb <- readRDS(spe_pseudobulk_by_celltype_file)
+```
+
+
+## Filter to a minimum num cells per pool
+
+How many cell per pool?
+```{r}
+DT::datatable(data.frame(colData(se.pdb))[,c('pdb_sample','individual_code','tissue_sample','ncells')])
+```
+
+
+```{r}
+# What is the minimum accepptable number of cells in a pool?
+min_cells_per_pdbsample <- 100
+
+ggplot(colData(se.pdb), aes(x=ncells, col=celltype_subset)) +
+  geom_density() +
+  geom_vline(xintercept=min_cells_per_pdbsample, lty=3) +
+  geom_rug() +
+  scale_x_log10() +
+  theme_bw() +
+  ggtitle("How many cells per pseduobulk sample?")
+
+```
+
+Apply filter
+```{r}
+# Filter on minimum number of cells per pdb group
+# (ncells column was added by aggregateAcrossCells)
+se.pdb <- se.pdb[,se.pdb$ncells >= min_cells_per_pdbsample]
+```
+
+
+## Differential expression
+
+```{r}
+
+# Pull out the pseudoboulk counts matrix for passed samples
+pseudobulk_counts_matrix <- counts(se.pdb)
+# And the corresponding annotations
+pseudobulk_anno_table    <- as_tibble(colData(se.pdb)[,c('pdb_sample','group', 'tissue_sample', 'celltype_subset', 'ncells')]) # + any other experimental factors
+
+
+
+# Build a table of each contrast we might want to do. 
+contrasts_wanted <- bind_cols(
+  A= c("CD"), # First terms
+  B= c("HC")  # Second terms (usually control)
+)
+
+
+```
+
+
+
+
+
+```{r}
+# Empty list to collect results
+de_result_list <- list()
+
+## Cycle through each celltype
+for (the_celltype in levels(se.pdb$celltype_subset)) {
+
+  # Subset pseudobulk object to one celltype
+  se.pdb.this <- se.pdb[,se.pdb$celltype_subset == the_celltype]
+  
+  # And pull out the annotation and counts
+  anno_table.this   <- as.tibble(colData(se.pdb.this))
+  count_matrix.this <- counts(se.pdb.this)
+
+  
+  ## Check for sufficient replicates ##
+  # To do any calculations, we need at least 2 pseudobulk groups per contrast.
+  # there are plenty in this experiemnt, but with less replicates and rare cell types
+  # its very common to have to skip some contrats for some celltypes.
+
+  # skip clusters with no samples after filtering
+  if( nrow(anno_table.this) < 1 ) {next}
+  
+  # Count how many bio samples per group (only need one fov to count it)
+  biosample_per_group <- anno_table.this %>% 
+    select(group, tissue_sample) %>%
+    pull(group) %>% # pull out group column, one entry per tissue sample
+    table() # count how many
+
+  # Are there enough Biological smples to consider the contrast?
+  min_biosample_per_group <- 2
+  enough_biosamples <- 
+    (unname(biosample_per_group[contrasts_wanted$A]) >= min_biosample_per_group) &
+    (unname(biosample_per_group[contrasts_wanted$B]) >= min_biosample_per_group)
+    
+  # Make a new table with contrasts that we have enough biosamples for.
+  contrasts_to_test <- contrasts_wanted[enough_biosamples,]
+  
+  
+  
+  ## Setup model
+  
+  # Setup objects for limma
+  dge <- DGEList(count_matrix.this)
+  dge <- calcNormFactors(dge)
+  
+  # Build model
+  group           <- anno_table.this$group
+
+  # CUSTOMISE:
+  # Model design 
+  # Add other experimental factors here 
+  # ~0 + group
+  # ~0 + group + individual
+  # ~0 + group + individual + slide
+  design    <- model.matrix( ~0 + group)
+  
+  # Run Voom
+  vm  <- voom(dge, design = design, plot = FALSE)
+  
+  # Adding dupliate correlation to use individual fovs, rather than pooled per biosample
+  fit     <- lmFit(vm, design) 
+
+  # Define and fit contrasts and run ebayes
+  # Doing this in an automated way so we can include/exvlude contrasts where 
+  # there are / arenot enough replicates available. 
+  # That's why generatgin a string .
+  contrast_str_list <- paste0("group",contrasts_to_test$A,"-","group",contrasts_to_test$B)
+  
+  contrasts <- makeContrasts(contrasts=contrast_str_list,
+                           levels=coef(fit))
+  
+  fit <- contrasts.fit(fit, contrasts)
+  fit <- eBayes(fit)
+
+  
+  
+  ## Loop through contrasts.
+  # You ccan run multiple contrasts at onces, but doing it this way allows us
+  # to skip individual contrasts within a celltype.
+  for ( the_coef in colnames(contrasts) ) {
+    # Make a version of the coeffient name that doesn't include a '-', or the 
+    # factor name (group)
+    # Life is easier without special characters
+    # groupUC-groupHC => UCvHC
+    contrast_name <- gsub("group","", gsub("-","v",the_coef))
+    
+    de_result.this <- topTable(fit, n = Inf, adjust.method = "BH", coef = the_coef) %>%
+      rownames_to_column("target") %>%
+      mutate(contrast=contrast_name,
+             contrast_group="pairwise",
+             celltype=the_celltype) %>%
+      select(celltype,contrast_group, contrast,target,everything()) %>%
+      arrange(P.Value)
+    
+      # build a unique name for this result by adding
+      # <celltype>_<A>v<B>
+      de_result_list[[paste(the_celltype, contrast_name, sep="_")]] <- de_result.this
+    
+  }
+
+}
+  
+# Join together results for all celltypes, and pull out those with a singificant adjusted p-value
+de_results_all.celltype <- bind_rows(de_result_list)
+de_results_sig.celltype <- filter(de_results_all.celltype, adj.P.Val < 0.05)
+
+
+
+```
+
+```{r}
+DT::datatable(de_results_sig.celltype)
+```
+
+
+## View genes
+
+
+
+This is hard to read (and slow) and doesn't tell you anything about bio replicates.
+
+```{r}
+plotExpression(sfe, "SELENOP", x="group", colour_by = "group",
+               other_fields = "celltype_subset") + 
+ facet_wrap(~celltype_subset)
+```
+
+
+
+
+```{r}
+# Get some normalised values, purely for plotting.
+# (can't use logged counts because the sizes are so dramatically different!)
+dge <- DGEList(counts(se.pdb))
+dge <- calcNormFactors(dge)
+norm_counts <- cpm(dge)
+
+# Store normalised log2 scale expression in 
+assay(se.pdb, "logcounts") <- log2(norm_counts)
+```
+
+
+
+```{r}
+plotExpression(se.pdb, "SELENOP", x="group", colour_by = "group",
+               other_fields = "celltype_subset") + 
+ facet_wrap(~celltype_subset)
+```
+
+
+

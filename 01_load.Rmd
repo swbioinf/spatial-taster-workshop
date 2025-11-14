@@ -1,0 +1,62 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+# Setup
+
+
+## Libraries 
+
+```{r}
+library(tidyverse)
+library(SpatialFeatureExperiment)
+library(Voyager)
+library(alabaster.sfe)
+library(patchwork)
+library(DT)         # For pretty html rendering of big tables.
+library(scuttle)    # Usefule SCE functions liek 'aggregateAcrossCells'
+library(scater)     # Usfele SCE functions like 'plotExpression'
+library(limma)      # for differential expression
+library(edgeR)      # for differential expression
+library(spicyR)
+```
+
+## Paths
+
+```{r}
+
+spe_02_banksy_niches_file <- file.path("data/GSE234713_CosMx_IBD_sfe_mini_02_banksy_niches")
+
+spe_pseudobulk_by_celltype_file           <- file.path("data/GSE234713_CosMx_IBD_sfe_mini_pseudobulk_by_celltype.RDS")
+spe_pseudobulk_by_niche_file              <- file.path("data/GSE234713_CosMx_IBD_sfe_mini_pseudobulk_by_niche.RDS")
+spe_pseudobulk_by_celltype_in_niche_file  <- file.path("data/GSE234713_CosMx_IBD_sfe_mini_pseudobulk_by_celltype_in_niche.RDS")
+
+```
+
+
+
+## Load data
+
+```{r}
+sfe <- readObject(spe_02_banksy_niches_file)
+sfe.sample <- sfe[,sfe$tissue_sample == 'HC_b'] 
+```
+
+
+
+
+# The experiment
+
+
+
+
+```{r}
+DT::datatable(as.data.frame(colData(sfe)))
+```
+
+
+
+
+

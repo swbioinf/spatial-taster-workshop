@@ -1,0 +1,70 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+# myeloids and epi
+
+_Are myeloid cells getting closer to the epithalia cells in chrones disease?_
+
+```{r}
+library(spicyR)
+
+
+#epi => myeloid
+spicy_cell_info <- as.data.frame(colData(sfe))[,c('cell', 'tissue_sample',  'celltype_subset', 'group', 'fov_name') ]
+spicy_cell_info <- cbind(spicy_cell_info, spatialCoords(sfe))
+spicy_cell_info <- spicy_cell_info %>%
+  dplyr::rename(
+    imageID = fov_name, #there are 4 fovs per tissue sample. In xenium data, that would be one per slide. And in other experiments, many samples per image.
+    x=CenterX_global_px,
+    y=CenterY_global_px
+  )
+spicy_cell_info$imageID <- droplevels(spicy_cell_info$imageID)
+
+# remove negative values
+# Else yeilds error: Error in owinInternalRect(xrange, yrange, ..., unitname = unitname): xrange should be a vector of length 2 giving (xmin, xmax)
+min_x <- min(spicy_cell_info$x)
+min_y <- min(spicy_cell_info$y)
+if (min_x < 0) {spicy_cell_info$x = spicy_cell_info$x + -(min_x) + 1 }
+if (min_y < 0) {spicy_cell_info$y = spicy_cell_info$y + -(min_y) + 1 }
+  
+
+
+# Convert pixels to Um (Unsure if neccessary)
+# Scale factor 0.12028 um per pixel
+#   + https://nanostring-biostats.github.io/CosMx-Analysis-Scratch-Space/posts/flat-file-exports/flat-files-compare.html#transcript-coordinates-file
+#   + See https://github.com/jinworks/CellChat/issues/292
+scale_factor = 0.12028
+spicy_cell_info <- spicy_cell_info %>% mutate(
+  x=x*scale_factor,
+  y=y*scale_factor
+)
+
+
+
+
+spicy_res <- spicy(
+  cells     = spicy_cell_info , 
+  subject   = 'tissue_sample',
+  cellType  = 'celltype_subset',
+  #sigma     = 50, # tissue is not see: homogenous https://www.bioconductor.org/packages/release/workflows/vignettes/spicyWorkflow/inst/doc/spicyWorkflow.html#14_spicyR:_Test_spatial_relationships
+  condition = "group",
+  #from      = "epi",
+  #to        = "myeloids"
+)
+
+
+topPairs(spicy_res)
+
+spicyBoxPlot(spicy_res, 
+             from = "epi", 
+             to = "myeloids")
+
+
+signifPlot(spicy_res)
+
+
+```

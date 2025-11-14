@@ -47,3 +47,13 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# added
+renv/*
+renv.lock
+data/
+data/*
+*.nb.html
+*.Rproj
+.Rprofile
+
