@@ -56,4 +56,4 @@ data/*
 *.nb.html
 *.Rproj
 .Rprofile
-
+*.html

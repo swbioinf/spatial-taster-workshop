@@ -1,18 +1,51 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Celltype co-occurance"
+output:
+  html_document:
+    df_print: paged
 ---
 
+```{r results='hide', echo=FALSE, warning=FALSE, message=FALSE}
+#Ignore this chunk, it is only to run the setup Rmarkdown when knitting 
+building_htmls <- ! interactive()
+if (building_htmls ) {
+   source(knitr::purl("00_Setup.Rmd", quiet=TRUE))
+}
+```
 
 
-# myeloids and epi
+**Are myeloid cells migrating closer to the epithalia cells in chrones disease?**
 
-_Are myeloid cells getting closer to the epithalia cells in chrones disease?_
+
+We can use spicyR to test if there is a change in the relative closeness of different celltypes (e.g. myeloid and epithelia) across different condition.
+
+See: [spicyR vignette](https://www.bioconductor.org/packages/release/bioc/vignettes/spicyR/inst/doc/spicyR.html#41_Test_for_change_in_localisation_for_a_specific_pair_of_cells)
+
+
+
+# Build the input for s
+
+
+SpicyR can work with a SFE object, but not in this specific case (It lacks image data, and some coordinates are negative). So instead, we will build a table of the relevant input data.
+
+For every cell, it requires the following
+
+* Cell type
+* X and Y coordinates
+* Sample ID 
+* Sample condition 
+* FOV (optional)
+
+
+The centroid coordinates of each cell are available with the spatialCoords function
 
 ```{r}
-#library(spicyR)
+head(spatialCoords(sfe))
+```
 
+Everything else we need is stored in the ColData(). We can join those two tables together, and then rename some columns according to what spicyR expects.
 
+```{r}
 #epi => myeloid
 spicy_cell_info <- as.data.frame(colData(sfe))[,c('cell', 'tissue_sample',  'celltype_subset', 'group', 'fov_name') ]
 spicy_cell_info <- cbind(spicy_cell_info, spatialCoords(sfe))
@@ -24,47 +57,85 @@ spicy_cell_info <- spicy_cell_info %>%
   )
 spicy_cell_info$imageID <- droplevels(spicy_cell_info$imageID)
 
-# remove negative values
+```
+
+
+Offset any negative X/Y coordinates to positive. The absolute positions don't matter.
+
+```{r}
+# remove negative values - not supported by spicyR
 # Else yeilds error: Error in owinInternalRect(xrange, yrange, ..., unitname = unitname): xrange should be a vector of length 2 giving (xmin, xmax)
 min_x <- min(spicy_cell_info$x)
 min_y <- min(spicy_cell_info$y)
 if (min_x < 0) {spicy_cell_info$x = spicy_cell_info$x + -(min_x) + 1 }
 if (min_y < 0) {spicy_cell_info$y = spicy_cell_info$y + -(min_y) + 1 }
-  
+```
 
+## Test proximity of myeloid cells to epithelia
 
-# Convert pixels to Um (Unsure if neccessary)
-# Scale factor 0.12028 um per pixel
-#   + https://nanostring-biostats.github.io/CosMx-Analysis-Scratch-Space/posts/flat-file-exports/flat-files-compare.html#transcript-coordinates-file
-#   + See https://github.com/jinworks/CellChat/issues/292
-scale_factor = 0.12028
-spicy_cell_info <- spicy_cell_info %>% mutate(
-  x=x*scale_factor,
-  y=y*scale_factor
-)
-
-
-
-
+```{r}
 spicy_res <- spicy(
   cells     = spicy_cell_info , 
   subject   = 'tissue_sample',
   cellType  = 'celltype_subset',
-  #sigma     = 50, # tissue is not see: homogenous https://www.bioconductor.org/packages/release/workflows/vignettes/spicyWorkflow/inst/doc/spicyWorkflow.html#14_spicyR:_Test_spatial_relationships
+  sigma     = 50, # tissue is not homogenous see: https://www.bioconductor.org/packages/release/workflows/vignettes/spicyWorkflow/inst/doc/spicyWorkflow.html#14_spicyR:_Test_spatial_relationships
   condition = "group",
-  #from      = "epi",
-  #to        = "myeloids"
+  from      = "epi",
+  to        = "myeloids"
 )
+```
 
 
+NB: Garrido-Trigo et al did a detailed exploration of localisation of macrophage and neutrophil subtypes in their data. We are testing a toy subset with some very broad celltypes!
+
+
+```{r}
 topPairs(spicy_res)
+```
 
+We can plot the 'L-function' between these groups per condition. There is an L value for each sample, which represents the 'closeness' of the celltype pair in that sample. Higher values indicates co-location. 
+
+```{r}
 spicyBoxPlot(spicy_res, 
              from = "epi", 
              to = "myeloids")
+```
 
 
-signifPlot(spicy_res)
+## Tests for changes across all celltypes
 
+
+If we omit the pair of celltypes - all combinations will be tested.
+```{r}
+spicy_res <- spicy(
+  cells     = spicy_cell_info , 
+  subject   = 'tissue_sample',
+  cellType  = 'celltype_subset',
+  sigma     = 50, # tissue is not homogenous see: https://www.bioconductor.org/packages/release/workflows/vignettes/spicyWorkflow/inst/doc/spicyWorkflow.html#14_spicyR:_Test_spatial_relationships
+  condition = "group"
+)
 
 ```
+
+And there is a very nice visualisation. The size of the circle scales with significants, and the colour indicates the magnitude of the 'L' Value. 
+
+```{r}
+signifPlot(spicy_res)
+```
+
+
+We should interpret this carefully (especially for such a small dataset) - is it actually interesting biology?
+
+```{r}
+p1 <- plotSpatialFeature(sfe.sample.HC, "celltype_subset",colGeometryName = "cellSeg") + 
+  theme(legend.title=element_blank()) +
+  ggtitle(sample)
+
+p2 <- plotSpatialFeature(sfe.sample.CD,  "celltype_subset", colGeometryName = "cellSeg") + 
+  theme(legend.title=element_blank()) +
+  ggtitle(sample)
+
+p1 / p2 
+
+```
+

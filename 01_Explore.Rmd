@@ -1,7 +1,19 @@
 ---
 title: "Explore the dataset"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
+
+
+```{r results='hide', echo=FALSE, warning=FALSE, message=FALSE}
+#Ignore this chunk, it is only to run the setup Rmarkdown when knitting 
+building_htmls <- ! interactive()
+if (building_htmls ) {
+   source(knitr::purl("00_Setup.Rmd", quiet=TRUE))
+}
+```
+
 
 ## The study
 
@@ -78,6 +90,11 @@ We'll be using 5 broad celltypes. These are from the Garrido-Trigo et al's origi
 ```{r}
 plotUMAP(sfe, colour_by='celltype_subset', scattermore=1)
 ```
+
+They're nicely distinguished on the tissue (one of the healthy control samples.)
+
+A note on the tissue: Here the top would be the lumen of the colon, with the external epithelia at the top, and a stromal layer at the bottom. The oval-shaped epithelial layers are crypts, and that region is called the lamina propira. See: https://www.pathologyoutlines.com/topic/colonhistology.html
+
 
 ```{r}
 plotSpatialFeature(sfe.sample.HC,'celltype_subset', colGeometryName = "cellSeg") + 

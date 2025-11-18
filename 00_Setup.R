@@ -1,25 +1,4 @@
----
-title: "Load Data and Libraries"
-output:
-  html_document:
-    df_print: paged
----
-
-
-First, load all libraries and the dataset for use in todays workshop.
-
-Rerun these commands to restart at any of the subsequent steps.
-
-
-
-# Setup
-
-
-## Libraries 
-
-
-
-```{r}
+## -----------------------------------------------------------------------------
 library(tidyverse)
 library(patchwork)                 # + / notation for side-by-side ggplots
 library(SpatialFeatureExperiment)  # The data object we will work with - inherits from single cell experiment
@@ -31,12 +10,9 @@ library(scater)     # Usfele SCE functions like 'plotExpression'
 library(limma)      # for differential expression
 library(edgeR)      # for differential expression
 library(spicyR)     # For testing celltype coocurance
-```
 
-## Paths
 
-Paths to pre-computed data.
-```{r}
+## -----------------------------------------------------------------------------
 
 spe_02_banksy_niches_file <- file.path("data/GSE234713_CosMx_IBD_sfe_mini_02_banksy_niches")
 
@@ -44,23 +20,13 @@ spe_pseudobulk_by_celltype_file           <- file.path("data/GSE234713_CosMx_IBD
 spe_pseudobulk_by_niche_file              <- file.path("data/GSE234713_CosMx_IBD_sfe_mini_pseudobulk_by_niche.RDS")
 spe_pseudobulk_by_celltype_in_niche_file  <- file.path("data/GSE234713_CosMx_IBD_sfe_mini_pseudobulk_by_celltype_in_niche.RDS")
 
-```
 
 
-## Load data
-
-
-Load pre-processed data.
-
-Plus subset one sample that we'll keep using for plotting.
-
-```{r}
+## -----------------------------------------------------------------------------
 # Load a spatialFeatureExperiment object (a type of SingleCellExperimet)
 sfe <- readObject(spe_02_banksy_niches_file)
 
 # And subset to one sample, for later plotting.
 sfe.sample.HC <- sfe[,sfe$tissue_sample == 'HC_b'] 
 sfe.sample.CD <- sfe[,sfe$tissue_sample == 'CD_a']
-```
-
 

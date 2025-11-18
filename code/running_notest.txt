@@ -1,0 +1,27 @@
+NOTES FOR RUNNING WORKSHOP
+
+
+1) 00_Setup.Rmd will set up the R environment for any of the subsequent activities (they're all indepedentant)
+
+
+2) 
+Trying to open an SFE object twice will yeild an error. (Expect this to occur). 
+
+Error in `H5Fopen()`:
+! HDF5. File accessibility. Unable to open file.
+
+To fix
+1. clear environment
+2. restart R
+3. Run 00_setup.Rmd
+
+
+3) There is a .backups directory, but I forgot to populatet it. If the object gets broken/overwritten we'll need to get a new VM (this shouldn't happen, there's no saving steps.)
+
+
+
+
+
+
+
+

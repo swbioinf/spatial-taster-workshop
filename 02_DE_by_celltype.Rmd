@@ -1,7 +1,18 @@
 ---
 title: "Differential expression - celltypes"
-output: html_notebook
+output:
+  html_document:
+    toc: true
+    df_print: paged
 ---
+
+```{r results='hide', echo=FALSE, warning=FALSE, message=FALSE}
+#Ignore this chunk, it is only to run the setup Rmarkdown when knitting 
+building_htmls <- ! interactive()
+if (building_htmls ) {
+   source(knitr::purl("00_Setup.Rmd", quiet=TRUE))
+}
+```
 
 
 **What is the difference between Crohns Disease and healthy samples; in terms of gene expression within each cell type?**
@@ -28,8 +39,6 @@ This can take a while to run - So load one that's already been preprocessed
 
 
 NB: We might consider applying an additional filter for number of minimum counts per cell here (particularly sice we don't need to maintain spatial information), but this data has already been filtered.
-
-
 
 
 
@@ -93,7 +102,8 @@ se.pdb <- se.pdb[,se.pdb$ncells >= min_cells_per_pdbsample]
 ## Differential expression
 
 
-We pull out the counts data, and corresponding psuedobulk annotation.
+We pull out the counts data, and corresponding psuedobulk annotation. And build a table of the contrasts we want to test - here there is only one - 'CD-HC'; Crohns disease vs Healthy Controls.
+
 ```{r}
 # Pull out the pseudoboulk counts matrix for passed samples
 pseudobulk_counts_matrix <- counts(se.pdb)
@@ -109,7 +119,17 @@ contrasts_wanted <- bind_cols(
 ```
 
 
-And can loop through each celltype.
+This secion of code will test for differential expression, looping through each celltype.
+ 
+1) Subset the counts and annotation to only that celltype
+2) And then, for each contrast we want to test (Which is only 1)
+   a. Check if there are enough biological replicates to test (ie. at least 2vs2)
+   b. Build a DGE list object with edgeR for testing
+   c. Define the design matrix, here simply: ~0 + group
+   d. Use Voom and Limma to test specificed contrasts
+   e. Pull out a results table, annotated with celltype and contrast tested
+   f. Record it
+3) Merge together all results tables
 
 ```{r}
 # Empty list to collect results
@@ -222,12 +242,15 @@ de_results_sig.celltype <- filter(de_results_all.celltype, adj.P.Val < 0.05)
 
 ```
 
+
+The significant results:
+
 ```{r}
 DT::datatable(de_results_sig.celltype)
 ```
 
 
-## View genes
+## Evaluate DE (by celltype) genes
 
 We can plot each cell's expression, but most counts are zero. This is hard to read (and slow).
 

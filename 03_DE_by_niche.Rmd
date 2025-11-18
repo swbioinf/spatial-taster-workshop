@@ -1,8 +1,17 @@
 ---
-title:  "Differential expression - Niches"
-output: html_notebook
+title: "Differential expression - Niches"
+output:
+  html_document:
+    df_print: paged
 ---
 
+```{r results='hide', echo=FALSE, warning=FALSE, message=FALSE}
+#Ignore this chunk, it is only to run the setup Rmarkdown when knitting 
+building_htmls <- ! interactive()
+if (building_htmls ) {
+   source(knitr::purl("00_Setup.Rmd", quiet=TRUE))
+}
+```
 
 **What is the difference between Crohns Disease and healthy samples; in in different regions of the tissue?**
 
@@ -18,13 +27,21 @@ plotSpatialFeature(sfe.sample.HC,'celltype_subset', colGeometryName = "cellSeg")
 
 ## Generate niches
 
-We can use 'Banksy' to define niches. Banksy doesn't use use celltypes at all, it uses each cells gene expression, its surrounding gene expresession and the difference between them.
+We can use 'Banksy' to define niches. Banksy doesn't use use celltypes at all; It uses 3 pieces of inoformation; each cells gene expression, its surrounding gene expression and a 'azimuthal gabor filter' (AGF) to capture the surrounding gene expression gradient - see Figure 1 https://www.nature.com/articles/s41588-024-01664-3 
 
 Again, this takes some time to run. The results are alreaady loaded in the sfe object. 
 
 ```{r eval=FALSE}
 
 ## DO NOT RUN ##
+
+# Lamda defines how much Banksy should consider the gene expression surrounding a cell
+# O uses only *this* cell, and 0.8 recormended for domain  (niche) finding
+lamdas      <- c(0.6) 
+
+# Resolution of clustering step 
+# Higher values = more niches.
+resolutions <- c(0.3, 0.5)
 
 # try to limit to just hvgs
 hvgs <- rownames(rowData(sfe))[rowData(sfe)$hvg]
@@ -51,6 +68,10 @@ sfe$niche <- factor(paste0('n', as.character(sfe$clust_M0_lam0.6_k50_res0.3)),
 
 ```
 
+```{r}
+head(colData(sfe), n=100) %>% as_tibble() %>% 
+  select(cell, tissue_sample, celltype_subset, clust_M0_lam0.6_k50_res0.5, clust_M0_lam0.6_k50_res0.3, niche )
+```
 
 
 
@@ -144,8 +165,9 @@ Load pseudobulk
 se.pdb <- readRDS(spe_pseudobulk_by_niche_file)
 ```
 
-
-
+```{r}
+counts(se.pdb)[1:5,1:5]
+```
 
 ## Filter to a minimum num cells per pool
 
@@ -170,7 +192,8 @@ ggplot(colData(se.pdb), aes(x=ncells, col=niche)) +
 
 ```
 
-Apply filter
+Again, apply filter.
+
 ```{r}
 # Filter on minimum number of cells per pdb group
 # (ncells column was added by aggregateAcrossCells)
@@ -178,10 +201,9 @@ se.pdb <- se.pdb[,se.pdb$ncells >= min_cells_per_pdbsample]
 ```
 
 
-
-
-
 ## Differential expression
+
+Differential expression calculated exactly as per celltype, just with niche.
 
 ```{r}
 
@@ -200,11 +222,11 @@ contrasts_wanted <- bind_cols(
 
 ```
 
+We won't be able to test niches 6 or 8. But the belwo code will test for the number of available conditions per side, and skip them automatically.
+
 ```{r}
 table(pseudobulk_anno_table$niche, pseudobulk_anno_table$group)
 ```
-
-
 
 ```{r}
 # Empty list to collect results
@@ -321,4 +343,79 @@ de_results_sig.niche <- filter(de_results_all.niche, adj.P.Val < 0.05)
 DT::datatable(de_results_sig.niche)
 ```
 
+
+## Evaluate DE (by regional niche) genes
+
+Again, make some normalised expression just for plotting. 
+
+```{r}
+# Get some normalised values, purely for plotting.
+# (can't use logged counts because the sizes are so dramatically different!)
+dge <- DGEList(counts(se.pdb))
+dge <- calcNormFactors(dge)
+norm_counts <- cpm(dge)
+
+# Store normalised log2 scale expression in 
+assay(se.pdb, "logcounts") <- log2(norm_counts)
+```
+
+
+### IGHG1 and IGHG2
+
+IGHG1 and IGHG2 (heavy chain immunoglobulins) are behaving very similarly, but the change seems to be fairly global.
+```{r}
+p1 <- plotExpression(se.pdb, "IGHG2", x="group", colour_by = "group",
+               other_fields = "niche") + 
+  ggtitle("IGHG2") + 
+  facet_wrap(~niche)
+p2 <- plotExpression(se.pdb, "IGHG1", x="group", colour_by = "group",
+               other_fields = "niche") + 
+  ggtitle("IGHG1") + 
+  facet_wrap(~niche)
+
+p1 + p2 
+```
+
+
+
+Just showing IGHG2; Suddenly Niche 1 makes sense!
+
+```{r}
+p1 <- plotSpatialFeature(sfe.sample.HC, "IGHG2",colGeometryName = "cellSeg") + 
+  theme(legend.title=element_blank()) +
+  ggtitle(sample) +
+  ggtitle("IGHG2 - HC_b")
+p2 <- plotSpatialFeature(sfe.sample.CD, "IGHG2",colGeometryName = "cellSeg") + 
+  theme(legend.title=element_blank()) +
+  ggtitle(sample) +
+    ggtitle("IGHG2 - CD_a")
+
+p1 / p2
+```
+
+
+### WNT2B 
+
+Could a lack of WNT2B be relevant? https://pubmed.ncbi.nlm.nih.gov/38697357/
+
+```{r}
+plotExpression(se.pdb, "WNT2B", x="group", colour_by = "group",
+               other_fields = "niche") + 
+  ggtitle("WNT2B") + 
+  facet_wrap(~niche)
+```
+
+
+```{r}
+p1 <- plotSpatialFeature(sfe.sample.HC, "WNT2B",colGeometryName = "cellSeg") + 
+  theme(legend.title=element_blank()) +
+  ggtitle(sample) +
+  ggtitle("WNT2B - HC_b")
+p2 <- plotSpatialFeature(sfe.sample.CD, "WNT2B",colGeometryName = "cellSeg") + 
+  theme(legend.title=element_blank()) +
+  ggtitle(sample) +
+    ggtitle("WNT2B - CD_a")
+
+p1 / p2
+```
 

@@ -4,7 +4,41 @@ output: html_document
 date: "2025-11-13"
 ---
 
-Whats the difference between myeloid cells at different tissue regions?
+```{r results='hide', echo=FALSE, warning=FALSE, message=FALSE}
+#Ignore this chunk, it is only to run the setup Rmarkdown when knitting 
+building_htmls <- ! interactive()
+if (building_htmls ) {
+   source(knitr::purl("00_Setup.Rmd", quiet=TRUE))
+}
+```
+
+
+**Whats the difference between plasma cells in the lymphoid regions vs those in the lamina propria?** 
+
+
+
+Ie. We expect there to be some differce in cell state of plamsa cells 
+
+We want to know if the plasma
+
+
+* Niche 6 captures the lymphoid regions seen in in HC_a, full of T cells and plasma cells
+* Niche 3 coveres the non-epitheial regions in the lamina propria, and has a sizesable number of plasma cells also.
+
+
+```{r}
+p1 <- plotSpatialFeature(sfe.sample.HC, "celltype_subset",colGeometryName = "cellSeg") + 
+  theme(legend.title=element_blank()) +
+  ggtitle(sample)
+
+p2 <- plotSpatialFeature(sfe.sample.HC, "niche",colGeometryName = "cellSeg") + 
+  theme(legend.title=element_blank()) +
+  ggtitle(sample)
+
+p1 / p2 
+```
+
+Each niche has a differenct balance of celltypes within it - and we can again see the sizeable proprortion of plasma cells present in both n3 and n6.
 
 ```{r}
 
@@ -27,15 +61,19 @@ ggplot(celltype_summary_table, aes(fill=celltype_subset, y=n_cells, x=niche) )+
 ```
 
 
-
 ## Pool samples into pseudobulk
 
-Build pseudobulk (precomputed)
+Once again, lets build (load) a pseudobulk representation to run a differential expression.
+This time, we will pool cells on the basis of sample, cell type and niche. 
+
+
+
 ```{r eval=FALSE}
 # DO NOT RUN
-sfe$pdb_sample <- paste0(sfe$tissue_sample, '_', sfe$niche)
+sfe$pdb_sample <- paste0(sfe$tissue_sample, '_', sfe$niche,"_", sfe$celltype_subset)
 se.pdb <- aggregateAcrossCells(sfe, ids=sfe$pdb_sample,
                                BPPARAM = MulticoreParam(workers=4)  )
+
 ```
 
 Load pseudobulk
@@ -43,10 +81,10 @@ Load pseudobulk
 se.pdb <- readRDS(spe_pseudobulk_by_celltype_in_niche_file)
 ```
 
-n6 vs n3 plasmas
 
-
-
+```{r}
+counts(se.pdb)[1:5,1:5]
+```
 
 
 
@@ -54,10 +92,17 @@ n6 vs n3 plasmas
 
 ## Filter to a minimum num cells per pool
 
-How many cell per pool?
+
+
 ```{r}
 DT::datatable(data.frame(colData(se.pdb))[,c('pdb_sample','individual_code', 'niche', 'celltype_subset' ,'tissue_sample','ncells')])
 ```
+
+
+
+With the extra level of separation - the pools (and thus total counts) are smaller. 
+
+We only care about plasma cells, and mostly only in n3 and n6 ;  so we can set a thresold accordingly. Here we choose 50 cells.
 
 
 ```{r}
@@ -77,7 +122,7 @@ ggplot(colData(se.pdb), aes(x=ncells, col=celltype_subset)) +
 ```
 
 
-Apply ncell filter, but also restrict to jsut plasma cells
+Apply ncell filter, and also filter down to just plasma cells.
 
 ```{r}
 # Filter on minimum number of cells per pdb group
@@ -88,9 +133,22 @@ se.pdb <- se.pdb[,se.pdb$celltype_subset == "plasmas"]
 
 ```
 
+
+
+
+
 ## Differnetial expression
 
-Only testing for differnece in plasma cells located in the B/T cell rich features vs those in the epithelial/stromal layer.
+
+Only testing for differnece in plasma cells located in the B/T cell rich lymphoid features (n6) vs those in the epithelial/stromal mix of the laminar propria layer (n3).
+
+
+Here we will ignore the condition (HC/CD) entirely, but we will have a paired analysis because we'll have pools of differently localised plasma cells from the same individual.
+
+
+There are plenty of plasma cells within other niches, so we will keep them in our model, even if we're not testing for them directly. 
+
+Note that is only 4 samples for niche 6 - not every sample had lymphoid regions to begin with.
 
 ```{r}
 # Pull out the pseudoboulk counts matrix for passed samples
@@ -99,9 +157,15 @@ pseudobulk_counts_matrix <- counts(se.pdb)
 pseudobulk_anno_table    <- as_tibble(colData(se.pdb)[,c('pdb_sample','group', 'tissue_sample', 'celltype_subset','niche', 'ncells')]) # + any other experimental factors
 ```
 
+How many (plasma) pools per niche and group?
+
 ```{r}
 table(pseudobulk_anno_table$niche, pseudobulk_anno_table$group)
 ```
+
+
+This code tests a single comparison, using the same approach as before. 
+
 
 ```{r}
 # And pull out the annotation and counts
@@ -109,8 +173,8 @@ anno_table   <- as.tibble(colData(se.pdb))
 counts_matrix <- counts(se.pdb)
 
 
- # Setup objects for limma
-dge <- DGEList(count_matrix)
+# Setup objects for limma
+dge <- DGEList(counts_matrix)
 dge <- calcNormFactors(dge)
 
 # Build model
@@ -145,29 +209,55 @@ de_result.plasmaloc <- topTable(fit, n = Inf, adjust.method = "BH", coef = 1) %>
 ```
 
 
-
-
-## 
-
 ```{r}
-sfe.sample.plasmas <- sfe.sample[, sfe.sample$celltype_subset == "plasmas"]
-```
-```{r}
-
-plotSpatialFeature( sfe.sample, "MS4A1",colGeometryName = "cellSeg") + 
-  theme(legend.title=element_blank()) +
-  ggtitle(sample)
-
-plotSpatialFeature( sfe.sample.plasmas, "niche",colGeometryName = "cellSeg") + 
-  theme(legend.title=element_blank()) +
-  ggtitle(sample)
-
-plotSpatialFeature( sfe.sample.plasmas, "MS4A1",colGeometryName = "cellSeg") + 
-  theme(legend.title=element_blank()) +
-  ggtitle(sample)
-
-
-
-
+DT::datatable(de_result.plasmaloc)
 ```
 
+
+
+## Evaluate DE (by plasma cell localisation) genes
+
+
+
+### CCL19
+
+```{r}
+sfe.sample.plasmas <- sfe.sample.HC[, sfe.sample.HC$celltype_subset == "plasmas"]
+```
+
+```{r}
+plotSpatialFeature( sfe.sample.HC, "CCL19",colGeometryName = "cellSeg") + 
+  theme(legend.title=element_blank()) +
+  ggtitle(sample)
+
+plotSpatialFeature( sfe.sample.plasmas , "niche",colGeometryName = "cellSeg") + 
+  theme(legend.title=element_blank()) +
+  ggtitle(sample)
+
+plotSpatialFeature( sfe.sample.plasmas , "CCL19",colGeometryName = "cellSeg") + 
+  theme(legend.title=element_blank()) +
+  ggtitle(sample)
+```
+
+
+### MS4A1
+
+Involved in B-cell differentiation into plasma cells.
+
+```{r}
+sfe.sample.plasmas <- sfe.sample.HC[, sfe.sample.HC$celltype_subset == "plasmas"]
+```
+
+```{r}
+plotSpatialFeature( sfe.sample.HC, "MS4A1",colGeometryName = "cellSeg") + 
+  theme(legend.title=element_blank()) +
+  ggtitle(sample)
+
+plotSpatialFeature( sfe.sample.plasmas , "niche",colGeometryName = "cellSeg") + 
+  theme(legend.title=element_blank()) +
+  ggtitle(sample)
+
+plotSpatialFeature( sfe.sample.plasmas , "MS4A1",colGeometryName = "cellSeg") + 
+  theme(legend.title=element_blank()) +
+  ggtitle(sample)
+```
