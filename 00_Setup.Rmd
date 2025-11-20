@@ -2,14 +2,13 @@
 title: "Load Data and Libraries"
 output:
   html_document:
+    toc: true
     df_print: paged
 ---
 
-
-First, load all libraries and the dataset for use in todays workshop.
+This Rmarkdown file will load all libraries and the dataset for use in today's workshop.
 
 Rerun these commands to restart at any of the subsequent steps.
-
 
 
 # Setup
@@ -17,7 +16,7 @@ Rerun these commands to restart at any of the subsequent steps.
 
 ## Libraries 
 
-
+Load all libraries used today. They are already installed on these VMs.
 
 ```{r}
 library(tidyverse)
@@ -26,8 +25,8 @@ library(SpatialFeatureExperiment)  # The data object we will work with - inherit
 library(Voyager)                   # Package with alot of useful plotting and spatial methods.
 library(alabaster.sfe)             # An efficient way to save SFE objects to disk. "Builds upon the existing ArtifactDB project, expending alabaster.spatial for language agnostic on disk serialization of SpatialFeatureExperiment. "
 library(DT)         # For pretty html rendering of big tables.
-library(scuttle)    # Usefule SCE functions liek 'aggregateAcrossCells'
-library(scater)     # Usfele SCE functions like 'plotExpression'
+library(scuttle)    # Useful SCE functions like 'aggregateAcrossCells'
+library(scater)     # Useful SCE functions like 'plotExpression'
 library(limma)      # for differential expression
 library(edgeR)      # for differential expression
 library(spicyR)     # For testing celltype coocurance
@@ -35,7 +34,11 @@ library(spicyR)     # For testing celltype coocurance
 
 ## Paths
 
-Paths to pre-computed data.
+This workshop will use CosMx Spatial Molecular Imager (SMI) data from the paper "Macrophage and neutrophil heterogeneity at single-cell spatial resolution in human inflammatory bowel disease" (Garrido-Trigo et al. 2023) - link: https://www.nature.com/articles/s41467-023-40156-6
+
+We will be using a small subset of data from that study, which has already been preprocessed. We will also be loading some derived data saved in some other objects. Here we specify their location. 
+
+
 ```{r}
 
 spe_02_banksy_niches_file <- file.path("data/GSE234713_CosMx_IBD_sfe_mini_02_banksy_niches")
@@ -49,13 +52,17 @@ spe_pseudobulk_by_celltype_in_niche_file  <- file.path("data/GSE234713_CosMx_IBD
 
 ## Load data
 
+Here we load the preprocessed data. 
 
-Load pre-processed data.
+Our main data object is a SpatialFeatureExperiment (SFE) object - which behaves like other data formats in the bioconductor ecosystem (SingleCellExperiment, SummarisedExperiment).
 
-Plus subset one sample that we'll keep using for plotting.
+It was saved using the alabaster system (designed for handling large datasets like this) spatialFeatureExperiment, so we load it with the special readObject() function from that package.
+
+We also make two single-sample subsets that we'll keep using for plotting.
+
 
 ```{r}
-# Load a spatialFeatureExperiment object (a type of SingleCellExperimet)
+# Load a spatialFeatureExperiment object (a type of SingleCellExperiment)
 sfe <- readObject(spe_02_banksy_niches_file)
 
 # And subset to one sample, for later plotting.

@@ -6,41 +6,28 @@ output:
     df_print: paged
 ---
 
-```{r results='hide', echo=FALSE, warning=FALSE, message=FALSE}
-#Ignore this chunk, it is only to run the setup Rmarkdown when knitting 
-building_htmls <- ! interactive()
-if (building_htmls ) {
-   source(knitr::purl("00_Setup.Rmd", quiet=TRUE))
-}
-```
+
+**What is the difference between Crohn's Disease and healthy samples; in terms of gene expression within each cell type?**
 
 
-**What is the difference between Crohns Disease and healthy samples; in terms of gene expression within each cell type?**
-
-
-This is essentially the same thing as a single cell experiment. For a review of approaches see; [Soneson & Robinson 2018](https://www.nature.com/articles/nmeth.4612)
+We can test for differential expression as though this was a single cell experiment. For a review of approaches see; [Soneson & Robinson 2018](https://www.nature.com/articles/nmeth.4612)
 
 We're going to use a pseudobulk approach; summing up all cells within a group, and treating it more like a bulk RNAseq experiment. 
 
-For a more detailed walkthrough of this test, see (spatial sampler differential expression by celltype HowTo)[https://swbioinf.github.io/spatialsnippets/e_DEPseudobulkSampleLevel_insitu_sfe.html]
+For a more detailed walkthrough of this test, see [spatial sampler differential expression by celltype HowTo](https://swbioinf.github.io/spatialsnippets/e_DEPseudobulkSampleLevel_insitu_sfe.html)
 
 
 ## Pool samples into pseudobulk
 
-
-We need to created a cell annotation for the pseudobulk grouping in our analysis. We can do this by concatenating the tissue sample ID with the celltype; calling this column pdb_sample here.
+We need to created a cell-level annotation for the pseudobulk grouping in our analysis. We can do this by concatenating the tissue sample ID with the celltype; calling this column pdb_sample here.
 
 Now use the PseudobulkExpression() function to sum up each gene’s gene expression across each pdb_sample.
 
 This will build a SummarisedExperiment object at the ‘sample+celltype’ level’. Which contains one entry per group, containing the sum of copies of the gene in all cells within the grouping.
 
-
 This can take a while to run - So load one that's already been preprocessed
 
-
-NB: We might consider applying an additional filter for number of minimum counts per cell here (particularly sice we don't need to maintain spatial information), but this data has already been filtered.
-
-
+NB: We might consider applying an additional filter for number of minimum counts per cell here (particularly since we don't need to maintain spatial information), but this data has already been filtered.
 
 ```{r eval=FALSE}
 ## DO NOT RUN ##
@@ -76,9 +63,9 @@ DT::datatable(data.frame(colData(se.pdb))[,c('pdb_sample','individual_code','tis
 ```
 
 
-100 is a decent threshold for this data. We could consider 200, but we would start to loose more of the T-cells, with fewer overall.
+100 is a decent threshold for this data. We could consider 200, but we would start to loose more of the T-cells, which are rarer overall.
 ```{r}
-# What is the minimum accepptable number of cells in a pool?
+# What is the minimum acceptable number of cells in a pool?
 min_cells_per_pdbsample <- 100
 
 ggplot(colData(se.pdb), aes(x=ncells, col=celltype_subset)) +
@@ -101,11 +88,12 @@ se.pdb <- se.pdb[,se.pdb$ncells >= min_cells_per_pdbsample]
 
 ## Differential expression
 
+First, we pull out the counts data, and corresponding pseudobulk annotation. 
 
-We pull out the counts data, and corresponding psuedobulk annotation. And build a table of the contrasts we want to test - here there is only one - 'CD-HC'; Crohns disease vs Healthy Controls.
+Then, we build a table of the contrasts we want to test - here there is only one - 'CD-HC'; Crohns disease vs Healthy Controls. Having this table makes it easier to dynamically skip celltypes or contrasts which don't have enough cells to test.
 
 ```{r}
-# Pull out the pseudoboulk counts matrix for passed samples
+# Pull out the pseudobulk counts matrix for passed samples
 pseudobulk_counts_matrix <- counts(se.pdb)
 # And the corresponding annotations
 pseudobulk_anno_table    <- as_tibble(colData(se.pdb)[,c('pdb_sample','group', 'tissue_sample', 'celltype_subset', 'ncells')]) # + any other experimental factors
@@ -119,14 +107,14 @@ contrasts_wanted <- bind_cols(
 ```
 
 
-This secion of code will test for differential expression, looping through each celltype.
+This section of code will test for differential expression, looping through each celltype.
  
 1) Subset the counts and annotation to only that celltype
 2) And then, for each contrast we want to test (Which is only 1)
    a. Check if there are enough biological replicates to test (ie. at least 2vs2)
    b. Build a DGE list object with edgeR for testing
    c. Define the design matrix, here simply: ~0 + group
-   d. Use Voom and Limma to test specificed contrasts
+   d. Use Voom and Limma to test specified contrasts
    e. Pull out a results table, annotated with celltype and contrast tested
    f. Record it
 3) Merge together all results tables
@@ -148,8 +136,8 @@ for (the_celltype in levels(se.pdb$celltype_subset)) {
   
   ## Check for sufficient replicates ##
   # To do any calculations, we need at least 2 pseudobulk groups per contrast.
-  # there are plenty in this experiemnt, but with less replicates and rare cell types
-  # its very common to have to skip some contrats for some celltypes.
+  # there are plenty in this experiment, but with less replicates and rare cell types
+  # its very common to have to skip some contrast for some celltypes.
 
   # skip clusters with no samples after filtering
   if( nrow(anno_table.this) < 1 ) {next}
@@ -160,7 +148,7 @@ for (the_celltype in levels(se.pdb$celltype_subset)) {
     pull(group) %>% # pull out group column, one entry per tissue sample
     table() # count how many
 
-  # Are there enough Biological smples to consider the contrast?
+  # Are there enough Biological samples to consider the contrast?
   min_biosample_per_group <- 2
   enough_biosamples <- 
     (unname(biosample_per_group[contrasts_wanted$A]) >= min_biosample_per_group) &
@@ -190,8 +178,7 @@ for (the_celltype in levels(se.pdb$celltype_subset)) {
   
   # Run Voom
   vm  <- voom(dge, design = design, plot = FALSE)
-  
-  # Adding dupliate correlation to use individual fovs, rather than pooled per biosample
+  # Fit model
   fit     <- lmFit(vm, design) 
 
   # Define and fit contrasts and run ebayes
@@ -252,7 +239,7 @@ DT::datatable(de_results_sig.celltype)
 
 ## Evaluate DE (by celltype) genes
 
-We can plot each cell's expression, but most counts are zero. This is hard to read (and slow).
+We can plot each cell's expression, but most counts are zero, which makes the plot difficult to interpret.
 
 ```{r}
 plotExpression(sfe, "SELENOP", x="group", colour_by = "group",
@@ -262,7 +249,7 @@ plotExpression(sfe, "SELENOP", x="group", colour_by = "group",
 
 
 
-The differential expression used counts data, but we can still calculate some normalised expression at the pseudobulk level. 
+While differential expression used counts data, we can still calculate some normalised expression at the pseudobulk level for plotting.
 ```{r}
 # Get some normalised values, purely for plotting.
 # (can't use logged counts because the sizes are so dramatically different!)
