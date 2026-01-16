@@ -1,0 +1,30 @@
+---
+title: "Spatial Taster Workshop"
+output:
+  html_document:
+    toc: true
+    df_print: paged
+---
+
+<!--![](assets/QCIFBioinformaticsBlueonwhite.png){width=40%} ![](assets/Australian-Biocommons-Logo.png){width=40%} --> 
+
+```{r, out.width = "400px", echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+knitr::include_graphics(c("images/QCIFBioinformaticsBlueonwhite.png", "images/Australian-Biocommons-Logo.png"))
+```
+<!--title: "Spatial Taster Workshop  <img src=\"QCIFBioinformaticsBlueonwhite.png\" style=\"float: right;\"/>"--> 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This workshop is organised into a number of semi-independant modules;
+
+1) [Setup](00_Setup.html) : Load a preprocessed dataset, and libraries needed for the analysis.
+2) [Explore](01_Explore.html) : Inspect the dataset - what does it look like?
+3) [Differential Expression: By Celltype](02_DE_by_celltype.html) : What genes are expressed differently between conditions, in different celltypes.
+4) [Differential Expression: By Niche](03_DE_by_niche.html) : Define different tissue niches by regional gene expressesion; Then identify genes that change in these regions by condition.
+5) [Differential Expression: By localisation](04_DE_by_localisation.html): What genes are expressed differently when a celltype is localised in different tissue niches?
+6) [Celltype co-occurances](05_celltype_cooccurance.html) : Do celltypes co-localise with other celltypes, in a manner than changes with condition?
+
+
+
