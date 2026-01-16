@@ -8,7 +8,7 @@ output:
 
 <!--![](assets/QCIFBioinformaticsBlueonwhite.png){width=40%} ![](assets/Australian-Biocommons-Logo.png){width=40%} --> 
 
-```{r, out.width = "400px", echo=FALSE, results='hide', message=FALSE, warning=FALSE}
+```{r, out.width = "400px", echo=FALSE, message=FALSE, warning=FALSE}
 knitr::include_graphics(c("images/QCIFBioinformaticsBlueonwhite.png", "images/Australian-Biocommons-Logo.png"))
 ```
 <!--title: "Spatial Taster Workshop  <img src=\"QCIFBioinformaticsBlueonwhite.png\" style=\"float: right;\"/>"--> 
