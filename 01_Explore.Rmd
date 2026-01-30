@@ -8,7 +8,7 @@ output:
 
 
 
-## The Study
+## The study
 
 This workshop will use CosMx Spatial Molecular Imager (SMI) data from the paper "Macrophage and neutrophil heterogeneity at single-cell spatial resolution in human inflammatory bowel disease" (Garrido-Trigo et al. 2023) - link: https://www.nature.com/articles/s41467-023-40156-6
 
@@ -21,17 +21,17 @@ There were 9x colon tissue samples, one per slide. They used a 1k RNA panel pane
 For this workshop, we will work with a subsetted dataset;
 
 * Only the Healthy and Crohn's disease samples - 6x samples total
-* Only a regional subset of each sample - First 4 'FOVs' (Fields Of View - cosmx scan areas)
+* Only a regional subset of each sample - first 4 'FOVs' (Fields Of View - CosMx scan areas)
 
 
 
 
 
 
-## The Data object
+## The data object
 
 
-This is a 'SpatialFeatureExperiment' Object.
+This is a `SpatialFeatureExperiment` object. (Visit https://pachterlab.github.io/SpatialFeatureExperiment/articles/SFE.html for more information on this class.)
 
 
 This subsetted dataset has 999 genes and 65601 cells. 
@@ -63,7 +63,7 @@ How many cells per sample?
 table(sfe$tissue_sample)
 ```
 
-This data is subsetted to only 4 'Fields of View' (FOV). On the cosmx platform, these are multiple rectangular regions that make up the run. Essentially we're looking at a corner of each sample.
+This data is subsetted to only 4 'Fields of View' (FOV) per sample. On the CosMx platform, these are multiple rectangular regions that make up the run. Essentially we're looking at a corner of each sample.
 
 ```{r}
 #NB: ColData is a DataFrame, not a data.frame, often need an explicit conversion
@@ -78,7 +78,7 @@ colData(sfe) %>% as.data.frame() %>% select(group,tissue_sample, fov, fov_name) 
 ## The existing annotation
 
 
-We'll be using 5 broad celltypes. These are from Garrido-Trigo et al's original paper. 
+We'll be using 5 broad cell types. These are from Garrido-Trigo et al's original paper. 
 
 ```{r}
 plotUMAP(sfe, colour_by='celltype_subset', scattermore=1)
@@ -94,12 +94,12 @@ plotSpatialFeature(sfe.sample.HC, 'celltype_subset', colGeometryName = "cellSeg"
   ggtitle(sample)
 ```
 
-There are multiple levels of celltype annotation in this dataset.
+There are multiple levels of cell type annotation in this dataset.
 
-There is the very (very) detailed celltype_singleR2, used for various analyses in the original paper;
+There is the very (very) detailed `celltype_singleR2`, used for various analyses in the original paper;
 
 ```{r}
-# Remove celltypes with less than 30 instances, purely for plotting.
+# Remove cell types with less than 30 instances, purely for plotting.
 cell_counts <- table(sfe.sample.HC$celltype_SingleR2)
 sfe.sample.HC$filtered_celltype_singleR2 <- as.character(ifelse(cell_counts[as.character(sfe.sample.HC$celltype_SingleR2)] >= 30 , as.character(sfe.sample.HC$celltype_SingleR2), "Other"))
 
