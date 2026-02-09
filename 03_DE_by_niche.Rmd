@@ -1,5 +1,5 @@
 ---
-title: "Differential expression - Niches"
+title: "Differential Expression: By niche"
 output:
   html_document:
     toc: true
@@ -14,7 +14,7 @@ output:
 if (! base::interactive()) { source("00_Setup.R") }
 ```
 
-**What is the difference between Crohns Disease and healthy samples in different regions of the tissue?**
+**What is the difference between Crohn's Disease and healthy samples in different regions of the tissue?**
 
 
 There are clear 'regions' in the tissue, e.g. a lymphoid region full of T cells and B cells. Or the very outer layer of epithelial, or the basal layer or stromal cells. We can identify and test for differences within these 'niches'. 
@@ -28,53 +28,55 @@ plotSpatialFeature(sfe.sample.HC,'celltype_subset', colGeometryName = "cellSeg")
 
 ## Generate niches
 
-We can use 'Banksy' to define niches. Banksy doesn't use use celltypes at all; It uses three pieces of information; each cell's gene expression, its surrounding gene expression and a 'azimuthal gabor filter' (AGF) to capture the surrounding gene expression gradient - see Figure 1 https://www.nature.com/articles/s41588-024-01664-3 
+We can use [BANKSY](https://www.nature.com/articles/s41588-024-01664-3) to define niches. Rather than using cell types, BANKSY uses three pieces of information: each cell's gene expression, its surrounding gene expression and a 'azimuthal gabor filter' (AGF) to capture the surrounding gene expression gradient - see [Figure 1](https://www.nature.com/articles/s41588-024-01664-3#Fig1).
 
 Again, this takes some time to run. The results are already loaded in the sfe object. 
 
 ```{r eval=FALSE}
 
-## DO NOT RUN ##
-
-# Lamda defines how much Banksy should consider the gene expression surrounding a cell
-# O uses only *this* cell, and 0.8 recommended for domain  (niche) finding
-lamdas      <- c(0.6) 
-
-# Resolution of clustering step 
-# Higher values = more niches.
-resolutions <- c(0.3, 0.5)
-
-# try to limit to just hvgs
-hvgs <- rownames(rowData(sfe))[rowData(sfe)$hvg]
-sfe.hvg <- sfe[hvgs,]
-sfe.hvg$tissue_sample<- droplevels(sfe.hvg$tissue_sample)
-
-#split by sample
-get_one_sample <- function(the_sample){sfe.hvg[,sfe.hvg$tissue_sample == the_sample]}
-sfe.list <- lapply(FUN=get_one_sample, X=levels(sfe.hvg$tissue_sample))
-
-# Get the underlying banksy computation
-sfe.list <- lapply(sfe.list, computeBanksy, assay_name = 'logcounts', k_geom = k_geom)
-sfe.merged <- do.call(cbind, sfe.list)
-sfe.merged <- Banksy::runBanksyPCA(sfe.merged, lambda = lamdas, npcs = npcs, group='tissue_sample', seed=12)
-sfe.merged <- Banksy::clusterBanksy(sfe.merged, lambda = lamdas, npcs = npcs, resolution = resolutions, seed=12)
-
-niches_table <- colData(sfe.merged)
-niche_lookup <- setNames(niches_table$clust_M0_lam0.6_k50_res0.5, nm=as.character( niches_table$cell ))
-niche_lookup2 <- setNames(niches_table$clust_M0_lam0.6_k50_res0.3, nm=as.character( niches_table$cell ))
-sfe$clust_M0_lam0.6_k50_res0.5 <- niche_lookup[as.character(sfe$cell)]
-sfe$clust_M0_lam0.6_k50_res0.3 <- niche_lookup2[as.character(sfe$cell)]
-sfe$niche <- factor(paste0('n', as.character(sfe$clust_M0_lam0.6_k50_res0.3)),
-                     levels=paste0('n',levels(sfe$clust_M0_lam0.6_k50_res0.3)))
+# ## DO NOT RUN ##
+# 
+# # Lambda defines how much BANKSY should consider the gene expression surrounding a cell
+# # O uses only *this* cell. 0.8 is recommended for finding domains (niches).
+# lambdas      <- c(0.6) 
+# 
+# # Resolution of clustering step 
+# # Higher values = more niches.
+# resolutions <- c(0.3, 0.5)
+# 
+# # Try to limit to just highly variable genes
+# hvgs <- rownames(rowData(sfe))[rowData(sfe)$hvg]
+# sfe.hvg <- sfe[hvgs,]
+# sfe.hvg$tissue_sample<- droplevels(sfe.hvg$tissue_sample)
+# 
+# # Split by sample
+# get_one_sample <- function(the_sample){sfe.hvg[,sfe.hvg$tissue_sample == the_sample]}
+# sfe.list <- lapply(FUN=get_one_sample, X=levels(sfe.hvg$tissue_sample))
+# 
+# # Get the underlying BANKSY computation
+# sfe.list <- lapply(sfe.list, computeBanksy, assay_name = 'logcounts', k_geom = k_geom)
+# sfe.merged <- do.call(cbind, sfe.list)
+# sfe.merged <- Banksy::runBanksyPCA(sfe.merged, lambda = lambdas, npcs = npcs, group='tissue_sample', seed=12)
+# sfe.merged <- Banksy::clusterBanksy(sfe.merged, lambda = lambdas, npcs = npcs, resolution = resolutions, seed=12)
+# 
+# niches_table <- colData(sfe.merged)
+# niche_lookup <- setNames(niches_table$clust_M0_lam0.6_k50_res0.5, nm=as.character( niches_table$cell ))
+# niche_lookup2 <- setNames(niches_table$clust_M0_lam0.6_k50_res0.3, nm=as.character( niches_table$cell ))
+# sfe$clust_M0_lam0.6_k50_res0.5 <- niche_lookup[as.character(sfe$cell)]
+# sfe$clust_M0_lam0.6_k50_res0.3 <- niche_lookup2[as.character(sfe$cell)]
+# sfe$niche <- factor(paste0('n', as.character(sfe$clust_M0_lam0.6_k50_res0.3)),
+#                      levels=paste0('n',levels(sfe$clust_M0_lam0.6_k50_res0.3)))
 
 ```
+
+See clusters assigned at different resolutions and the niche assigned using 0.3 resolution.
 
 ```{r}
 head(colData(sfe), n=100) %>% as_tibble() %>% 
   select(cell, tissue_sample, celltype_subset, clust_M0_lam0.6_k50_res0.5, clust_M0_lam0.6_k50_res0.3, niche )
 ```
 
-
+Observe niches plotted on the healthy tissue. 
 
 ```{r}
 plotSpatialFeature(sfe.sample.HC, "niche",colGeometryName = "cellSeg") + 
@@ -102,16 +104,16 @@ plotSpatialFeature(sfe.sample.CD, "niche",colGeometryName = "cellSeg") + # Choos
 ### Explore niches 
 
 
-What celltypes make up the niches?
+What cell types make up the niches?
 
 Can see that;
 
 * Niche 7 is almost entirely epithelia along the outer edge. 
 * Niche 2 is the epithelia in the epithelial 'crypt' structures in the lamina propria.
-* Niche 6 captures the lymphoid regions seen in in HC_a, full of T cells and plasma cells
+* Niche 6 captures the lymphoid regions seen in in HC_a, full of T cells and plasma cells.
 
 ```{r}
-## Celltype proportions
+## Cell type proportions
 celltype_summary_table<- colData(sfe) %>% as_tibble() %>%
   group_by(celltype_subset, niche ) %>%
   summarise(n_cells = n())
@@ -122,15 +124,15 @@ ggplot(celltype_summary_table, aes(fill=celltype_subset, y=n_cells, x=niche) )+
   coord_flip() +
   theme(legend.position = "bottom") +
   scale_y_continuous(expand = c(0,0)) +
-  ggtitle( "Celltype composition")
+  ggtitle( "Niche composition by cell type")
 ```
 
-Likewise, its helpful to see what their proportions are across different sample. 
+Likewise, its helpful to see the proportion of niche types across different samples. 
 This can be quite variable - particularly when we're working on a particularly 
 small region of each sample!
 
 ```{r}
-## Celltype proportions
+## Niche proportions
 celltype_summary_table<- colData(sfe) %>% as_tibble() %>%
   group_by(tissue_sample, niche ) %>%
   summarise(n_cells = n())
@@ -141,7 +143,7 @@ ggplot(celltype_summary_table, aes(fill=niche, y=n_cells, x=tissue_sample) )+
   coord_flip() +
   theme(legend.position = "bottom") +
   scale_y_continuous(expand = c(0,0)) +
-  ggtitle( "Niche composition by sample")
+  ggtitle( "Sample composition by niche")
 
 
 ```
@@ -151,17 +153,22 @@ ggplot(celltype_summary_table, aes(fill=niche, y=n_cells, x=tissue_sample) )+
 
 ## Pool samples into pseudobulk
 
-So again - build another pseudobulk, this time on the niche level. 
+Like when conducting differential expression by cell type, we need to create a cell-level annotation for the pseudobulk grouping in our analysis, but this time by niche. We do this by concatenating the tissue sample ID with the niche; here we call this column `pdb_sample`.
 
-Build pseudobulk (precomputed)
+The `aggregateAcrossCells()` function from the `scuttle` package is used to sum up each gene’s expression across each `pdb_sample`.
+
+This will build a `SummarizedExperiment` object with one entry per `pdb_sample` combined sample-niche group. Each entry contains the sum of copies of the gene for all cells within the group.
+
+This can take a while to run - we will load one that's already been preprocessed.
+
 ```{r eval=FALSE}
-# DO NOT RUN
-sfe$pdb_sample <- paste0(sfe$tissue_sample, '_', sfe$niche)
-se.pdb <- aggregateAcrossCells(sfe, ids=sfe$pdb_sample,
-                               BPPARAM = MulticoreParam(workers=4)  )
+# # DO NOT RUN
+# sfe$pdb_sample <- paste0(sfe$tissue_sample, '_', sfe$niche)
+# se.pdb <- aggregateAcrossCells(sfe, ids=sfe$pdb_sample,
+#                                BPPARAM = MulticoreParam(workers=4)  )
 ```
 
-Load pseudobulk
+Load preprocessed pseudobulk
 ```{r}
 se.pdb <- readRDS(spe_pseudobulk_by_niche_file)
 ```
@@ -170,13 +177,13 @@ se.pdb <- readRDS(spe_pseudobulk_by_niche_file)
 counts(se.pdb)[1:5,1:5]
 ```
 
-## Filter to a minimum num cells per pool
+## Filter to a minimum number of cells per pool
 
 How many cell per pool?
 ```{r}
 DT::datatable(data.frame(colData(se.pdb))[,c('pdb_sample','individual_code','tissue_sample','niche','ncells')])
 ```
-
+We will pick a threshold for ‘minimum cells per pseudobulk sample’ based on the distribution of the data. A pool of 2 or 5 cells would be too small to reasonably test. 
 
 ```{r}
 # What is the minimum acceptable number of cells in a pool?
@@ -192,8 +199,9 @@ ggplot(colData(se.pdb), aes(x=ncells, col=niche)) +
   ggtitle("How many cells per pseduobulk sample?")
 
 ```
+Here we can see that 100 cells is a good cutoff for all niches.
 
-Again, apply filter.
+Apply filter.
 
 ```{r}
 # Filter on minimum number of cells per pdb group
@@ -204,7 +212,7 @@ se.pdb <- se.pdb[,se.pdb$ncells >= min_cells_per_pdbsample]
 
 ## Differential expression
 
-Differential expression calculated exactly as per celltype, just with niche.
+Differential expression calculated exactly as per cell type, just with niche.
 
 ```{r}
 
@@ -240,31 +248,31 @@ for (the_niche in levels(se.pdb$niche)) {
   se.pdb.this <- se.pdb[,se.pdb$niche == the_niche]
   
   # And pull out the annotation and counts
-  anno_table.this   <- as.tibble(colData(se.pdb.this))
+  anno_table.this   <- as_tibble(colData(se.pdb.this))
   count_matrix.this <- counts(se.pdb.this)
 
   
   ## Check for sufficient replicates ##
   # To do any calculations, we need at least 2 pseudobulk groups per contrast.
-  # there are plenty in this experiment, but with less replicates and rare cell types
-  # its very common to have to skip some contrast for some niches.
+  # There are plenty in this experiment, but with less replicates and rare cell types
+  # It's very common to have to skip some contrasts for some niches.
 
-  # skip clusters with no samples after filtering
+  # Skip clusters with no samples after filtering
   if( nrow(anno_table.this) < 1 ) {next}
   
-  # Count how many bio samples per group (only need one fov to count it)
+  # Count how many biological replicates per group (only need one FOV to count it)
   biosample_per_group <- anno_table.this %>% 
     select(group, tissue_sample) %>%
     pull(group) %>% # pull out group column, one entry per tissue sample
     table() # count how many
 
-  # Are there enough Biological samples to consider the contrast?
+  # Are there enough biological replicates to consider the contrast?
   min_biosample_per_group <- 2
   enough_biosamples <- 
     (unname(biosample_per_group[contrasts_wanted$A]) >= min_biosample_per_group) &
     (unname(biosample_per_group[contrasts_wanted$B]) >= min_biosample_per_group)
     
-  # Make a new table with contrasts that we have enough biosamples for.
+  # Make a new table with contrasts that we have enough biological replicates for.
   contrasts_to_test <- contrasts_wanted[enough_biosamples,]
   
   # Skip if no contrasts are testable
@@ -286,16 +294,17 @@ for (the_niche in levels(se.pdb$niche)) {
   # ~0 + group + individual + slide
   design    <- model.matrix( ~0 + group)
   
-  # Run Voom
+  # Run voom
   vm  <- voom(dge, design = design, plot = FALSE)
   
   # Fit model
   fit     <- lmFit(vm, design) 
 
-  # Define and fit contrasts and run ebayes
+  # Define and fit contrasts and run eBayes
   # Doing this in an automated way so we can include/exclude contrasts where 
-  # there are / aren't enough replicates available. 
-  # That's why generating a string .
+  # there are/aren't enough replicates available. 
+  # The list of strings generated here is parsed by the makeContrasts function
+  # to build a contrasts matrix.
   contrast_str_list <- paste0("group",contrasts_to_test$A,"-","group",contrasts_to_test$B)
   
   contrasts <- makeContrasts(contrasts=contrast_str_list,
@@ -324,8 +333,7 @@ for (the_niche in levels(se.pdb$niche)) {
       select(niche,contrast_group, contrast,target,everything()) %>%
       arrange(P.Value)
     
-      # build a unique name for this result by adding
-      # <niche>_<A>v<B>
+      # Build a unique name for this result by adding <niche>_<A>v<B>
       de_result_list[[paste(the_niche, contrast_name, sep="_")]] <- de_result.this
     
   }

@@ -1,5 +1,5 @@
 ---
-title: "DE by localisation"
+title: "Differential Expression: By localisation"
 output:
   html_document:
     toc: true
@@ -32,10 +32,11 @@ p2 <- plotSpatialFeature(sfe.sample.HC, "niche",colGeometryName = "cellSeg") +
   theme(legend.title=element_blank()) +
   ggtitle(sample)
 
-p1 / p2 
+p1 + p2 + plot_layout(nrow = 2) & 
+  theme(legend.position = "bottom")
 ```
 
-Each niche has a different balance of celltypes within it - and we can again see the sizeable proportion of plasma cells present in both n3 and n6.
+Each niche has a different balance of cell types within it - and we can again see the sizeable proportion of plasma cells present in both n3 and n6.
 
 ```{r}
 
@@ -50,7 +51,7 @@ ggplot(celltype_summary_table, aes(fill=celltype_subset, y=n_cells, x=niche) )+
   coord_flip() +
   theme(legend.position = "bottom") +
   scale_y_continuous(expand = c(0,0)) +
-  ggtitle( "Celltype composition")
+  ggtitle( "Niche composition by cell type")
 
 
 
@@ -66,10 +67,10 @@ This time, we will pool cells on the basis of sample, cell type and niche.
 
 
 ```{r eval=FALSE}
-# DO NOT RUN
-sfe$pdb_sample <- paste0(sfe$tissue_sample, '_', sfe$niche,"_", sfe$celltype_subset)
-se.pdb <- aggregateAcrossCells(sfe, ids=sfe$pdb_sample,
-                               BPPARAM = MulticoreParam(workers=4)  )
+# # DO NOT RUN
+# sfe$pdb_sample <- paste0(sfe$tissue_sample, '_', sfe$niche,"_", sfe$celltype_subset)
+# se.pdb <- aggregateAcrossCells(sfe, ids=sfe$pdb_sample,
+#                                BPPARAM = MulticoreParam(workers=4)  )
 
 ```
 
@@ -87,7 +88,7 @@ counts(se.pdb)[1:5,1:5]
 
 
 
-## Filter to a minimum num cells per pool
+## Filter to a minimum number of cells per pool
 
 
 
@@ -179,16 +180,16 @@ dge <- calcNormFactors(dge)
 individual      <- anno_table$tissue_sample
 niche           <- anno_table$niche
 
-#model design
+# Model design
 design    <- model.matrix( ~0 + niche + individual)
 
-# Run Voom
+# Run voom
 vm  <- voom(dge, design = design, plot = FALSE)
 
 # Fit model
 fit     <- lmFit(vm, design) 
 
-# just one test; are the plasma cells different in the n3 (lyphoid ) regions vs dispersed in the epithelial adjacent stroma?
+# Just one test: Are the plasma cells different in the n3 (lyphoid) regions vs dispersed in the epithelial adjacent stroma?
 contrasts <- makeContrasts(contrasts="nichen6-nichen3",
                            levels=coef(fit))
 
