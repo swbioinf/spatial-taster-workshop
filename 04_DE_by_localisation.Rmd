@@ -162,7 +162,8 @@ table(pseudobulk_anno_table$niche, pseudobulk_anno_table$tissue_sample)
 ```
 
 
-This code tests a single comparison, using the same approach as before. 
+This code tests a single comparison, using the same approach as before. (As per [Differential Expression: By Celltype](02_DE_by_celltype.html) and [Differential Expression: By Niche](03_DE_by_niche.html)) 
+
 
 
 ```{r}

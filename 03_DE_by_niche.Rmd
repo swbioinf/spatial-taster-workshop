@@ -153,7 +153,7 @@ ggplot(celltype_summary_table, aes(fill=niche, y=n_cells, x=tissue_sample) )+
 
 ## Pool samples into pseudobulk
 
-Like when conducting differential expression by cell type, we need to create a cell-level annotation for the pseudobulk grouping in our analysis, but this time by niche. We do this by concatenating the tissue sample ID with the niche; here we call this column `pdb_sample`.
+Like when conducting [differential expression by cell type](02_DE_by_celltype.html), we need to create a cell-level annotation for the pseudobulk grouping in our analysis, but this time by niche. We do this by concatenating the tissue sample ID with the niche; here we call this column `pdb_sample`.
 
 The `aggregateAcrossCells()` function from the `scuttle` package is used to sum up each gene’s expression across each `pdb_sample`.
 
