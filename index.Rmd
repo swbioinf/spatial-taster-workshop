@@ -6,12 +6,9 @@ output:
     df_print: paged
 ---
 
-<!--![](assets/QCIFBioinformaticsBlueonwhite.png){width=40%} ![](assets/Australian-Biocommons-Logo.png){width=40%} --> 
 
-```{r, out.width = "400px", echo=FALSE, message=FALSE, warning=FALSE}
-knitr::include_graphics(c("images/QCIFBioinformaticsBlueonwhite.png", "images/Australian-Biocommons-Logo.png"))
-```
-<!--title: "Spatial Taster Workshop  <img src=\"QCIFBioinformaticsBlueonwhite.png\" style=\"float: right;\"/>"--> 
+
+[![qcif logo](images/QCIFBioinformaticsBlueonwhite.png){width=29%}](https://www.qcif.edu.au/) [![biocommons logo](images/Australian-Biocommons-Logo.png){width=29%}](https://www.biocommons.org.au/) 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -27,4 +24,9 @@ This workshop is organised into a number of semi-independant modules;
 6) [Celltype co-occurances](05_celltype_cooccurance.html) : Do celltypes co-localise with other celltypes, in a manner than changes with condition?
 
 
+
+
+VMs for this workshop are provided by bioshell:
+
+[![bios logo](images/bioshell_Logo.png){width=29%}](https://sydney-informatics-hub.github.io/BioShell-User-Guide/index)
 
